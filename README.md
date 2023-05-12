@@ -17,7 +17,7 @@ This is the list of all the tools that have yet been designed.
 | KR Kommand | Idea | A Linux shell. |
 | KR Launcher | Idea | An app launcher. |
 | KR Music | Idea | A program for making sheet music. |
-| KR Network | Idea | A simple HTTP client for sending HTTP requests. |
+| KR Network | Pre-Alpha | A simple HTTP client for sending HTTP requests. |
 | KR Patch | Idea | A program for patching binary files. |
 | KR QR | Idea | A QR Code decoder/encoder. |
 | KR Server | Idea | A simple server generator. |
