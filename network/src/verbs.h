@@ -14,3 +14,11 @@ typedef enum {
 char *verbnames[NUM_VERBS] = {
   "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"
 };
+
+char *verbnames_lower[NUM_VERBS] = {
+  "get", "post", "put", "patch", "delete", "options", "head"
+};
+
+char *verbnames_abbrev[NUM_VERBS] = {
+  "get", "post", "put", "patch", "del", "opt", "head"
+};

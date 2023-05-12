@@ -96,14 +96,14 @@ int main(int argc, char **argv) {
 	char buffer[BUFSIZ];
 	char **buffer2;
 	updateScreen();
-	echo("KR Network v0.05p Coryright (C) 2023 kevidryon2\n");
+	echo("KR Network v0.06p Coryright (C) 2023 kevidryon2\n");
 	echo("This program comes with ABSOLUTELY NO WARRANTY; for details type 'warranty'.");
 	echo("This is free software, and you are welcome to redistribute it under certain conditions; type 'copying' for details.");
 	echo("");
 	MoveCursor(2, ws.ws_row-1);
 	
 	while (1) {
-		if (scanf("%s", buffer) == EOF) {
+		if (fgets(buffer, BUFSIZ, stdin) == EOF) {
 			MoveCursorHome();
 			ClearScreen();
 			return 1;

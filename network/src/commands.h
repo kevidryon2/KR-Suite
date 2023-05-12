@@ -9,6 +9,7 @@ typedef enum {
   COMMAND_SEND,
   COMMAND_HEADER,
   COMMAND_CLEAR,
+  COMMAND_EXIT,
   NUM_COMMANDS,
 } CommandNumber;
 
@@ -30,12 +31,38 @@ void notimpl(int argc, char **argv) {
   echo("This command hasn't been implemented yet. If you see this command and you're not a KRSuite developer, please wait for a new update.");
 }
 
+extern HTTPVerb verb;
+extern int cy;
+
 void sverb(int argc, char **argv) {
+  if (argc<1) {
+    echo("Usage: setverb <verb>");
+    echo("Verbs: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD");
+    return;
+  }
   for (int i=0; i<NUM_VERBS; i++) {
-    if (!strcmp(argv[1], verbnames[i])) {
-      
+    if (!strcmp(argv[1], verbnames[i]) || 
+        !strcmp(argv[1], verbnames_lower[i]) || 
+        !strcmp(argv[1], verbnames_abbrev[i])) {
+      verb = i;
+      echo("Set verb to %d succesfully");
+      break;
+    }
+    if (i == NUM_VERBS-1) {
+      echo("The verb doesn't exist!");
     }
   }
+}
+
+void nexit() {
+  MoveCursorHome();
+  ClearScreen();
+  exit(0);
+}
+
+void clear() {
+  ClearScreen();
+  cy = 0;
 }
 
 const struct {
@@ -44,9 +71,10 @@ const struct {
 } commands[NUM_COMMANDS] = {
     {"warranty", warranty},
     {"copying", notimpl},
-    {"setverb", notimpl},
+    {"setverb", sverb},
     {"seturl", notimpl},
     {"sendrequest", notimpl},
     {"setheader", notimpl},
-    {"clear", ClearScreen}
+    {"clear", clear},
+    {"exit", nexit}
 };

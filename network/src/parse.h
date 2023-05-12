@@ -5,6 +5,11 @@
 
 int parse(char *cmd) {
   
+  //remove newline
+  for (int i=0; i<strlen(cmd); i++) {
+    cmd[i] = (cmd[i] == '\n') ? 0 : cmd[i];
+  }
+  
   //separate command into tokens
   char *tokens[MAX_TOKENS];
   int ntok;
@@ -23,7 +28,7 @@ int parse(char *cmd) {
   //test first token against all commands
   for (int i=0; i<NUM_COMMANDS; i++) {
     if (!strcmp(tokens[0], commands[i].cmdname)) {
-      commands[i].handler(ntok-1, tokens+sizeof(char*));
+      commands[i].handler(ntok-1, tokens);
       break;
     }
     if (i == NUM_COMMANDS-1) {
