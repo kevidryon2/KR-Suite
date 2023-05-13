@@ -9,7 +9,7 @@ This is the list of all the tools that have yet been designed.
 | KR Archive | Idea | A tool for creating archive files; it does not compress files by default. |
 | KR Compress | Idea | A program for compressing and decompressing files; it is a compilation of different algorithms (LZSS, RLE, Filtering, ...). |
 | KR Draw | Idea | A program for drawing and transforming images using scripts. |
-| KR Encrypt | Idea | A program for encrypting and decrypting files using a 16-bit key. |
+| KR Encrypt | Pre-Alpha | A program for encrypting and decrypting files using a 16-bit key. |
 | KR Flash | Idea | A program for flashing/dumping EEPROM chips. |
 | KR Games | Idea | A tiny game launcher. |
 | KR Images | Idea | A tool for viewing small images. |

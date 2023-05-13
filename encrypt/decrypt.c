@@ -1,0 +1,3 @@
+void decrypt(char *data) {
+	
+}
