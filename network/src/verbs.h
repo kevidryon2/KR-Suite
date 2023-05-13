@@ -22,3 +22,24 @@ char *verbnames_lower[NUM_VERBS] = {
 char *verbnames_abbrev[NUM_VERBS] = {
   "get", "post", "put", "patch", "del", "opt", "head"
 };
+
+
+typedef enum {
+  FORMAT_NONE = 0,
+  FORMAT_JSON,
+  FORMAT_XML,
+  FORMAT_YAML,
+  FORMAT_EDN,
+  FORMAT_TXT,
+  FORMAT_BIN,
+  FORMAT_OTHER,
+  NUM_FORMATS
+} BodyFormat;
+
+char *fmtnames[NUM_FORMATS] = {
+  "NONE", "JSON", "XML", "YAML", "EDN", "TXT", "BIN", "OTHER"
+};
+
+char *fmtnames_lower[NUM_FORMATS] = {
+  "none", "json", "xml", "yaml", "edn", "txt", "bin", "other"
+};

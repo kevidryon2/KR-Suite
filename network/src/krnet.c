@@ -24,7 +24,6 @@
 #include "verbs.h"
 #include "parse.h"
 
-#define max(a,b) (a>b?a:b)
 
 void drawHLine(int x, int y, int l, char c) {
 	MoveCursor(x, y);
@@ -76,6 +75,7 @@ void echo(char *text) {
 		ClearScreen();
 		cy = 0;
 		MoveCursor(1, 2);
+		echo("...\n");
 	}
 	printf(text, verb);
 	cy += 1 + strlen(text)/ws.ws_col;
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 	char buffer[BUFSIZ];
 	char **buffer2;
 	updateScreen();
-	echo("KR Network v0.06p Coryright (C) 2023 kevidryon2\n");
+	echo("KR Network v0.07p Coryright (C) 2023 kevidryon2\n");
 	echo("This program comes with ABSOLUTELY NO WARRANTY; for details type 'warranty'.");
 	echo("This is free software, and you are welcome to redistribute it under certain conditions; type 'copying' for details.");
 	echo("");
