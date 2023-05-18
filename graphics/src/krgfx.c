@@ -1,4 +1,5 @@
 #include "spng.h"
+#include "qoi.h"
 
 const char qoi_magic[4] = "qoif";
 const char png_magic[4] = "\x89PNG";
@@ -9,10 +10,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	
+	printf("KR Graphics v0.02\n");
+									
 	char scbuff[BUFSIZ];
-	
 	fread(scbuff, 1, BUFSIZ, stdin);
-	
 	
 	
 	return 0;
