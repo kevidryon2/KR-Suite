@@ -1,0 +1,2 @@
+path /ping
+	response 200 pong

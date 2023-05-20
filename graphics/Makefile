@@ -1,7 +1,8 @@
-all: clean src/qoi.h build/krgfx_opt build/krgfx_optdbg build/krgfx build/qoie build/qoid
+CFLAGS = "-flto -ffast-math -fno-threadsafe-statics -fno-unroll-loops -finline-limit=n"
+
+all: clean src/qoi.h build/krgfx_opt build/krgfx_dbg build/krgfx build/qoie build/qoid
 clean:
 	rm -rf build/*
-
 
 build/krgfx_static: build/krgfx.o build/spng.o build/libz.a build/qoi.o
 	gcc -g build/krgfx.o build/spng.o build/libz.a build/qoi.o -lm -o build/krgfx_static
@@ -10,16 +11,16 @@ build/krgfx: build/krgfx.o build/spng.o build/qoi.o
 	gcc -g build/*.o -lm -lz -o build/krgfx
 	
 build/krgfx_opt_static: build/krgfx.o build/spng.o build/libz.a build/qoi.o
-	gcc -O2 build/krgfx.o build/spng.o build/libz.a build/qoi.o -lm -o build/krgfx_static
+	gcc -Os build/krgfx.o build/spng.o build/libz.a build/qoi.o -lm -o build/krgfx_opt_static
 
 build/krgfx_opt: build/krgfx.o build/spng.o build/qoi.o
-	gcc -O2 build/*.o -lm -lz -o build/krgfx
+	gcc -Os build/*.o -lm -lz -o build/krgfx_opt
 	
-build/krgfx_optdbg_static: build/krgfx.o build/spng.o build/libz.a build/qoi.o
-	gcc -O2 -g build/krgfx.o build/spng.o build/libz.a build/qoi.o -lm -o build/krgfx_static
+build/krgfx_dbg_static: build/krgfx.o build/spng.o build/libz.a build/qoi.o
+	gcc -Os -g build/krgfx.o build/spng.o build/libz.a build/qoi.o -lm -o build/krgfx_dbg_static
 
-build/krgfx_optdbg: build/krgfx.o build/spng.o build/qoi.o
-	gcc -O2 -g build/*.o -lm -lz -o build/krgfx
+build/krgfx_dbg: build/krgfx.o build/spng.o build/qoi.o
+	gcc -Os -g build/*.o -lm -lz -o build/krgfx_dbg
 
 
 

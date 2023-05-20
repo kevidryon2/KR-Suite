@@ -18,10 +18,13 @@ This is the list of all the tools that have yet been designed.
 | KR Network `krnet` | Pre-Alpha | A simple HTTP client for sending HTTP requests. |
 | KR Patch `krpatch` | Idea | A program for patching binary files. |
 | KR QR `krqr` | Idea | A QR Code decoder/encoder. |
-| KR Server `krsvr` | Idea | A tool for managing servers. |
+| KR Server `krsvr` | Pre-Alpha | A tool for managing servers. |
 | KR Text `krtxt` | Idea | A text editor. |
 | KR Users `krusr` | Idea | A frontend for managing Linux users. |
 | KR Video `krvid` | Idea | A program for making videos using scripts. |
+
+## Licenses
+Every KR Suite program is licensed under the GPL3 license, except for KR Server which is licensed under the AGPL3.
 
 ## Contributing
 
