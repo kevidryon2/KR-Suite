@@ -59,7 +59,7 @@ void set_env_variable() {
 }
 
 int main(int argc, char **argv, char **envp) {
-	printf("KR Server v0.01\n");
+	printf("KR Server v0.02\n");
 	
 	srand(time(NULL));
 	

@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <string.h>
 
-char *compile(char *code);
+char *compile(char *code, int *len);
 
 int main(int argc, char **argv) {
 	if (argc<3) {
@@ -40,10 +40,11 @@ int main(int argc, char **argv) {
 	fseek(ifp, 0, SEEK_END);
 	char *buffer = malloc(ftell(ifp));
 	fseek(ifp, 0, SEEK_SET);
-	
 	fread(buffer, 1, -1, ifp);
 	
-	printf("%s", compile(buffer));
+	int len;
+	char *cbuffer = compile(buffer, &len);
+	fwrite(cbuffer, 1, len, ofp);
 	
 	return 0;
 }
