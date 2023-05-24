@@ -19,9 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#define NETC_VERSION_MAJOR 0x00
-#define NETC_VERSION_MINOR 0x02
+#include "bns.h"
 
 #define NUM_KEYWORDS 3
 const char *keywords[NUM_KEYWORDS] = {
@@ -47,29 +45,6 @@ char *argparses(int argc, char **argv, int start) {
 	}
 	return buffer;
 }
-
-
-
-
-typedef struct {
-	char magic[4]; //Always 'nets'
-	unsigned char ver_major;
-	unsigned char ver_minor;
-	char paths[64]; //An array of zero-terminated path strings
-} NSHeader;
-
-typedef enum {
-	INST_NOP 			= 0x30,
-	INST_RETURN 		= 0xd6,
-	INST_STRING_PACKET	= 0x1e //Followed by a zero-terminated string
-} NSInstID;
-
-typedef struct {
-	char data[3];
-	unsigned char inst_id;
-} NSInstruction;
-
-
 
 char *compile(char *code, int *len) {
 	int linecount = 1;
@@ -126,6 +101,9 @@ char *compile(char *code, int *len) {
 				break;
 			
 			case 0:
+				if (strlen(h.paths)>(64-strlen(h.paths))) {
+					printf("Error: Path buffer is full\n");
+				}
 				printf("Adding path %s\n", argparses(tokencount, tokens, 1));
 				strcpy(h.paths+strlen(h.paths)+1, argparses(tokencount, tokens, 1));
 				break;

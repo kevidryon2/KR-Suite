@@ -25,24 +25,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string.h>
 #include <dirent.h>
 #include <errno.h>
+#include "bns.h"
+#include "server.h"
 
 #define max(a,b) ((a)>(b)?(a):(b))
+
+LoadedScript *loadScript(char *data, int len);
 
 char *compile(char *script);
 void exec(char *binscript);
 int initserver();
 
-int search_begin(char **array, int num_elements, char *string) {
+int search_begin(char **restrict array, int num_elements, char *restrict string) {
 	for (int i=0; i<num_elements; i++) {
 		if (!strncmp(array[i], string, strlen(string))) {
 			return i;
 		}
 	}
+	return -1;
+}
+
+int endswith(char *restrict s, char *restrict end) {
+	char *so = s+(strlen(s)-strlen(end));
+	return !strcmp(so, end);
 }
 
 char *combine(char *restrict a, char *restrict b) {
-	char *buffer = malloc( max(strlen(a), strlen(b)) );
-	strncpy(buffer, a, BUFSIZ);
+	char *buffer = malloc( strlen(a)+strlen(b)+1 );
+	strcpy(buffer, a);
 	strcat(buffer, b);
 	return buffer;
 }
@@ -53,13 +63,20 @@ char *getstr(FILE *fp) {
 	return buffer;
 }
 
+void testmalloc() {
+	char *p = malloc(4096);
+	memset(p, 0xfe, 4096);
+	free(p);
+	printf("(tested malloc)\n");
+}
+
 void set_env_variable() {
 	printf("You should set the KRSERVER_PATH environment variable to the path you want to use as the server main directory.\n");
 	exit(1);
 }
 
 int main(int argc, char **argv, char **envp) {
-	printf("KR Server v0.02\n");
+	printf("KR Server v0.03\n");
 	
 	srand(time(NULL));
 	
@@ -71,7 +88,7 @@ int main(int argc, char **argv, char **envp) {
 		port = atoi(argv[1]);
 	}
 
-	printf("Using port %d.\n\n", port);
+	printf("Using port %d\n\n", port);
 	
 	int serversock = initserver(port);
 	char rootpath[BUFSIZ];
@@ -80,8 +97,15 @@ int main(int argc, char **argv, char **envp) {
 	getcwd(cwdbuffer, BUFSIZ/2);
 	strcpy(rootpath, cwdbuffer);
 	
-	if (!getenv("KRSERVER_PATH")) set_env_variable();	
+	if (!getenv("KRSERVER_PATH")) set_env_variable();
+	
+	if (!realpath(getenv("KRSERVER_PATH"), NULL)) {
+		perror(getenv("KRSERVER_PATH"));
+		return 127;
+	}
+	
 	strcpy(rootpath, realpath(getenv("KRSERVER_PATH"), NULL));
+	strcat(rootpath, "/");
 	
 	printf("Using directory %s\n", rootpath);
 	
@@ -89,7 +113,7 @@ int main(int argc, char **argv, char **envp) {
 	
 	char scriptpath[BUFSIZ];
 	
-	sprintf(scriptpath, "%s/scripts", rootpath);
+	sprintf(scriptpath, "%s/scripts/", rootpath);
 	
 	DIR *dp = opendir(scriptpath);
 	
@@ -100,14 +124,50 @@ int main(int argc, char **argv, char **envp) {
 		printf("You should create the 'scripts' and 'public' directories in the main server folder.\n");
 	}
 	
+	void *tempptr;
 	struct dirent *ent;
 	FILE *fp;
+	int len;
+	int sn = 0;
 	
 	while ((ent = readdir(dp))) {
 		if (ent->d_name[0] != '.') {
-			printf("Loading file %s\n", ent->d_name);
-			
-			
+			if (endswith(ent->d_name, ".bns")) {
+				
+				//Open file
+				free(buffer);
+				buffer = combine(scriptpath, ent->d_name);
+				printf("Loading file %s... ", ent->d_name);
+				fp = fopen(buffer, "r");
+				
+				if (!fp) {
+					printf("can't open :( (Error %d)\n", errno);
+					return 1;
+				}
+				
+				//Read file
+				free(buffer);
+				fseek(fp, 0, SEEK_END);
+				len = ftell(fp);
+				buffer = malloc(len);
+				
+				fseek(fp, 0, SEEK_SET);
+				fread(buffer, 1, len, fp);
+				
+				//Load file
+				tempptr = loadScript(buffer, len);
+				if (!tempptr) {
+					printf("can't load :( (Error %d)\n", errno);
+					return 1;
+				}
+				
+				scripts[sn] = *(LoadedScript*)tempptr;
+				
+				printf("OK\n");
+				
+				sn++;
+				fclose(fp);
+			}
 		}
 	}
 	
