@@ -31,7 +31,7 @@ int initserver(unsigned short port) {
 	struct sockaddr_in addr = {
 		AF_INET,
 		htons(port),
-		INADDR_ANY
+		0
 	};
 	
 	printf("Creating socket... ");
@@ -43,6 +43,13 @@ int initserver(unsigned short port) {
 		exit(127);
 	}
 	
+	int t = 1;
+										
+	if (!setsockopt(sock, IPPROTO_TCP, SO_REUSEPORT, &t, sizeof(int))) {
+		printf("can't setsockopt :( (error %d)\n", errno);
+		exit(127);
+	}
+										
 	printf("OK\nListening... ");
 	if (listen(sock, 4096)) {
 		printf("can't listen :( (error %d)\n", errno);

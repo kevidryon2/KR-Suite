@@ -10,7 +10,7 @@ LoadedScript *loadScript(char *data, int len) {
 	
 	//Allocate memory
 	NSHeader h;
-	LoadedScript *s = malloc(sizeof(s));
+	LoadedScript *s = malloc(sizeof(LoadedScript));
 	
 	//Read header
 	memcpy(&h, data, sizeof(h));
@@ -28,7 +28,7 @@ LoadedScript *loadScript(char *data, int len) {
 	
 	//Load paths
 	for (int i=0; p<h.paths+64; i++) {
-		s->paths[i] = malloc(strlen(p));
+		s->paths[i] = malloc(strlen(p)+1);
 		if (strlen(p)) {
 			memcpy(s->paths[i], p, strlen(p)+1);
 		}
