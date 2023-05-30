@@ -21,30 +21,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include "bns.h"
 
-#define NUM_KEYWORDS 3
+#define NUM_KEYWORDS 4
 const char *keywords[NUM_KEYWORDS] = {
-	"path", "return", "end"
+	"path", "return", "end", "supports-verb"
 };
-
-//Search N in H
-int needle(char *n, char **h, int lh) {
-	for (int i=0; i<lh; i++) {
-		if (!strcmp(h[i], n)) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-char *argparses(int argc, char **argv, int start) {
-	char *buffer = malloc(BUFSIZ);
-	buffer[0] = 0;
-	for (int i=start; i<=argc; i++) {
-		strcat(buffer, argv[i]);
-		if (i < argc) strcat(buffer, " ");
-	}
-	return buffer;
-}
 
 char *compile(char *code, int *len) {
 	int linecount = 1;
@@ -128,6 +108,10 @@ char *compile(char *code, int *len) {
 			
 			case 2:
 				goto stop;
+			
+			case 3:
+				
+				break;
 		}
 		
 		end:

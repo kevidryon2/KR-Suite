@@ -15,7 +15,25 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#pragma once
-#include "bns.h"
 
-LoadedScript scripts[256];
+#include <stdio.h>
+
+//Search N in H
+int needle(char *n, char **h, int lh) {
+	for (int i=0; i<lh; i++) {
+		if (!strcmp(h[i], n)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+char *argparses(int argc, char **argv, int start) {
+	char *buffer = malloc(BUFSIZ);
+	buffer[0] = 0;
+	for (int i=start; i<=argc; i++) {
+		strcat(buffer, argv[i]);
+		if (i < argc) strcat(buffer, " ");
+	}
+	return buffer;
+}
