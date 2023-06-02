@@ -18,6 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 
+#define max(a,b) ((a)>(b)?(a):(b))
+#define min(a,b) ((b)>(a)?(a):(b))
+
 //Search N in H
 int needle(char *n, char **h, int lh) {
 	for (int i=0; i<lh; i++) {
@@ -35,5 +38,30 @@ char *argparses(int argc, char **argv, int start) {
 		strcat(buffer, argv[i]);
 		if (i < argc) strcat(buffer, " ");
 	}
+	return buffer;
+}
+
+int search_begin(char **restrict array, int num_elements, char *restrict string) {
+	for (int i=0; i<num_elements; i++) {
+		if (!strncmp(array[i], string, strlen(string))) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int startswith(char *s, char *c) {
+	return !strncmp(s, c, min(strlen(c), strlen(s)));
+}
+
+int endswith(char *restrict s, char *restrict end) {
+	char *so = s+(strlen(s)-strlen(end));
+	return !strcmp(so, end);
+}
+
+char *combine(char *restrict a, char *restrict b) {
+	char *buffer = malloc( strlen(a)+strlen(b)+1 );
+	strcpy(buffer, a);
+	strcat(buffer, b);
 	return buffer;
 }

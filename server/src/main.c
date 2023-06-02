@@ -32,8 +32,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "bns.h"
 #include "server.h"
 
-//KR Server Version String
-#define KRS_VERS "0.10"
+/* KR Server Version String */
+#define KRS_VERS "0.10.1"
 
 void sigpipe() {
 	SetColor16(COLOR_RED);
@@ -67,50 +67,15 @@ typedef struct {
 } RequestData;
 
 LoadedScript *loadScript(char *data, int len);
-
+int needle(char *n, char **h, int lh);
 char *compile(char *script);
 void exec(char *binscript);
 int initserver();
 void execscript(LoadedScript script, RequestData reqdata, char *resbuff);
-
-int search_begin(char **restrict array, int num_elements, char *restrict string) {
-	for (int i=0; i<num_elements; i++) {
-		if (!strncmp(array[i], string, strlen(string))) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-int startswith(char *s, char *c) {
-	return !strncmp(s, c, min(strlen(c), strlen(s)));
-}
-
-int endswith(char *restrict s, char *restrict end) {
-	char *so = s+(strlen(s)-strlen(end));
-	return !strcmp(so, end);
-}
-
-char *combine(char *restrict a, char *restrict b) {
-	char *buffer = malloc( strlen(a)+strlen(b)+1 );
-	strcpy(buffer, a);
-	strcat(buffer, b);
-	return buffer;
-}
-
-char *getstr(FILE *fp) {
-	char buffer[BUFSIZ];
-	fscanf(fp, "%s", buffer);
-	return buffer;
-}
-
-void testmalloc() {
-	char *p = malloc(4096);
-	memset(p, 0xfe, 4096);
-	free(p);
-	printf("(tested malloc)\n");
-}
-
+int search_begin(char **restrict array, int num_elements, char *restrict string);
+int startswith(char *s, char *c);
+int endswith(char *restrict s, char *restrict end);
+char *combine(char *restrict a, char *restrict b);
 char *ntoken(char *const s, char *d, int t) {
 	char *tk = malloc(strlen(s)+1);
 	strcpy(tk, s);
@@ -119,15 +84,6 @@ char *ntoken(char *const s, char *d, int t) {
 		tk = strtok(0, d);
 	}
 	return tk;
-}
-
-char *randstr(int len) {
-	char *s = malloc(len+1);
-	for (int i=0; i<len; i++) {
-		s[i] = rand()%26+'a';
-	}
-	s[len] = 0;
-	return s;
 }
 
 char *escapestr(char *s) {
@@ -171,6 +127,7 @@ char *unescapestr(char *s) {
 		}
 	}
 	
+	return un;
 }
 
 void set_env_variable() {
@@ -179,13 +136,21 @@ void set_env_variable() {
 }
 
 int main(int argc, char **argv, char **envp) {
+	char *buffer;
+	char scriptpath[BUFSIZ];
+	void *tempptr;
+	struct dirent *ent;
+	FILE *fp;
+	int len;
+	int sn = 0;
+	unsigned short port;
+	
 	printf("KR Server "KRS_VERS"\n");
 	
 	signal(SIGPIPE, sigpipe);
 	
+	/* Seed RNG */
 	srand(time(NULL));
-	
-	unsigned short port;
 	
 	if (argc<2) {
 		port = 8080;
@@ -200,11 +165,10 @@ int main(int argc, char **argv, char **envp) {
 	char cwdbuffer[BUFSIZ/2];
 	char *fullpath;
 	
+	/* Get server path */
 	getcwd(cwdbuffer, BUFSIZ/2);
 	strcpy(rootpath, cwdbuffer);
-	
 	if (!getenv("KRSERVER_PATH")) set_env_variable();
-	
 	if (!(fullpath = realpath(getenv("KRSERVER_PATH"), NULL))) {
 		perror(getenv("KRSERVER_PATH"));
 		return 127;
@@ -217,30 +181,19 @@ int main(int argc, char **argv, char **envp) {
 	
 	printf("\nLoading scripts...\n");
 	
-	char scriptpath[BUFSIZ];
-	
 	sprintf(scriptpath, "%s/scripts/", rootpath);
 	
 	DIR *dp = opendir(scriptpath);
-	
-	char *buffer;
-	
 	if (!dp) {
 		printf("can't open script directory :( (Errno %d)\n", errno);
 		printf("You should create the 'scripts', 'public', 'cache' (the latter as a ramdisk) directories in the main server folder.\n");
 	}
 	
-	void *tempptr;
-	struct dirent *ent;
-	FILE *fp;
-	int len;
-	int sn = 0;
-	
 	while ((ent = readdir(dp))) {
 		if (ent->d_name[0] != '.') {
 			if (endswith(ent->d_name, ".bns")) {
 				
-				//Open file
+				/*Open file*/
 				free(buffer);
 				buffer = combine(scriptpath, ent->d_name);
 				printf("Loading file %s... ", ent->d_name);
@@ -251,7 +204,7 @@ int main(int argc, char **argv, char **envp) {
 					return 1;
 				}
 				
-				//Read file
+				/* Read file */
 				free(buffer);
 				fseek(fp, 0, SEEK_END);
 				len = ftell(fp);
@@ -260,7 +213,7 @@ int main(int argc, char **argv, char **envp) {
 				fseek(fp, 0, SEEK_SET);
 				fread(buffer, 1, len, fp);
 				
-				//Load file
+				/* Load file */
 				tempptr = loadScript(buffer, len);
 				if (!tempptr) {
 					printf("can't load :( (Error %d)\n", errno);
@@ -290,28 +243,27 @@ int main(int argc, char **argv, char **envp) {
 	socklen_t caddrl;
 	char reqbuff[BUFSIZ];
 	char *resbuff = malloc(BUFSIZ);
-	RequestData reqdata;
 	
-	/* I: Read Request
-	 * P: Parse Request
-	 * H: Check HTTP Version and Verb
-	 * 	S: Search and Execute Script
-	 * 	F: Return file, checking cache
-	 *   C: File is cached
-	 *   N: File is not cached
-	 * O: Send Response
-	 * 
-	 */
+	if (!resbuff) {
+		perror("malloc");
+		return -1;
+	}
+	
+	RequestData reqdata;
 	
 	FILE *tmpfp;
 	
 	FILE *publicfp;
 	FILE *cachedfp;
 	
+	char public_path[PATH_MAX];
+	char cached_path[PATH_MAX];
 	char *line;
 	char *body;
 	
 	while (true) {
+		
+		/* Accept */
 		csock = accept(serversock, &caddr, &caddrl);
 		printf("Recieved Request (Address %d.%d.%d.%d, Port %d) ",
 			   caddr.sin_addr.s_addr%256,
@@ -321,19 +273,20 @@ int main(int argc, char **argv, char **envp) {
 			   be16toh(caddr.sin_port)
 		);
 		
-		memset(buffer, 0, BUFSIZ);
+		/* Clear buffers */
 		memset(resbuff, 0, BUFSIZ);
 		memset(reqbuff, 0, BUFSIZ);
 		memset(&reqdata, 0, sizeof(reqdata));
 		
-		//Read request
+		/* Read request */
 		putchar('I');
 		read(csock, reqbuff, BUFSIZ);
 		
-		//Parse request
+		/* Parse request */
 		putchar('P');
 		line = ntoken(reqbuff, "\r\n", 0);
 		
+		/* If 2nd token doesn't exist error */
 		if (!ntoken(line, " ", 2)) {
 			SetColor16(COLOR_RED);
 			printf("H");
@@ -343,21 +296,24 @@ int main(int argc, char **argv, char **envp) {
 			goto endreq;
 		}
 		
+		/* Read request data */
 		strncpy(reqdata.rverb, ntoken(line, " ", 0), 7);
 		strcpy(reqdata.path, ntoken(line, " ", 1));
 		strncpy(reqdata.protocol, ntoken(line, " ", 2), 7);
 		
 		
-		//Verify client is using HTTP 1.0 or HTTP 1.1 Protocol
+		/* Verify client is using HTTP 1.0 or HTTP 1.1 Protocol and using verb GET, POST, PUT, PATCH, DELETE, OPTIONS, or HEAD*/
 		if (!(startswith(reqdata.protocol, "HTTP/1.0") ||
 			  startswith(reqdata.protocol, "HTTP/1.1"))) {
-				SetColor16(COLOR_RED);
-				putchar('H');
-				ResetColor16();
-				sprintf(resbuff, "Bad Protocol\n");
-				write(csock, resbuff, strlen(resbuff));
-				goto endreq;
+			/* Using HTTP 0.9 */
+			SetColor16(COLOR_RED);
+			putchar('H');
+			ResetColor16();
+			sprintf(resbuff, "Bad Protocol\n");
+			write(csock, resbuff, strlen(resbuff));
+			goto endreq;
 		} else if ((cverb = needle(reqdata.rverb, verbs, 7)) < 0) {
+			/* Using invalid verb */
 			SetColor16(COLOR_RED);
 			printf("V (Bad verb %s)", reqdata.rverb);
 			ResetColor16();
@@ -367,6 +323,7 @@ int main(int argc, char **argv, char **envp) {
 		}
 		putchar('H');
 		
+		/* Search for a script to handle the request */
 		for (int i=0; i<256; i++) {
 			for (int j=0; j<16; j++) {
 				if (scripts[i].paths[j])
@@ -377,19 +334,20 @@ int main(int argc, char **argv, char **envp) {
 		};
 		
 		
-		//TODO: Parse headers
+		/* TODO: Parse headers */
 		
 		goto noscript;
 script:
 		if (cverb == VERB_OPTIONS) {
 			printf("Ts");
-			//TODO: Return verbs supported by script
+			/* TODO: Return verbs supported by script */
 		}
 		putchar('S');
 		execscript(scripts[script], reqdata, resbuff);
 		goto response;
 		
 noscript:
+		/* If verb is OPTIONS return allowed options (GET, OPTIONS, HEAD) */
 		if (cverb == VERB_OPTIONS) {
 			printf("T");
 			sprintf(resbuff, "HTTP/1.0 200 OK\r\nServer: KRServer/"KRS_VERS"\r\nAllow: OPTIONS, GET, HEAD\r\n");
@@ -398,15 +356,15 @@ noscript:
 			
 		}
 		
-		//Fetch file
+		/* Fetch file */
 		putchar('F');
-		memset(buffer, 0, BUFSIZ);
-		sprintf(buffer, "%s/public/%s", rootpath, reqdata.path);
+		memset(public_path, 0, PATH_MAX);
+		sprintf(public_path, "%s/public/%s", rootpath, reqdata.path);
 		
-		//If file doesn't exist in public directory return 404
-		if (!(publicfp = fopen(buffer, "r"))) {
-			printf("%d ", errno);
+		/* If file doesn't exist in public directory return 404 Not Found */
+		if (!(publicfp = fopen(public_path, "r"))) {
 			SetColor16(COLOR_RED);
+			printf("%d ", errno);
 			printf("%s ", reqdata.path);
 			ResetColor16();
 			sprintf(resbuff, "HTTP/1.0 404 Not Found\nServer: KRServer/"KRS_VERS);
@@ -414,50 +372,46 @@ noscript:
 			goto endreq;
 		}
 		
-		//File exists
+		/* File exists */
 		printf(" %s ", reqdata.path);
-		memset(buffer, 0, BUFSIZ);
+		memset(cached_path, 0, PATH_MAX);
+		sprintf(cached_path, "%s/cache/%s", rootpath, escapestr(reqdata.path));
 										 
-		sprintf(buffer, "%s/cache/%s", rootpath, escapestr(reqdata.path));
-										 
-		//Is file in cache?
-		if ((cachedfp = fopen(buffer, "r"))) {
+		/* Is file in cache? */
+		if ((cachedfp = fopen(cached_path, "r"))) {
 			putchar('C');
 										 
-			//Read cached file
+			/* Read cached file */
 			fseek(cachedfp, 0, SEEK_END);
 			body = malloc(ftell(cachedfp));
 			fseek(cachedfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, cachedfp);
-			
+			 
+			/* Close FPs */
 			fclose(publicfp);
 			fclose(cachedfp);
 			
 		} else {
 			putchar('N');
-			//If not cache file
-			if (!(cachedfp = fopen(buffer, "w"))) { //open cached file
+			/* If not cache file */
+			if (!(cachedfp = fopen(cached_path, "w"))) { /* open cached file */
 				SetColor16(COLOR_RED);
-				putchar('C');
+				printf("%dC", errno);
 				ResetColor16();
 				goto endreq;
 			}
-			memset(buffer, 0, BUFSIZ);
-			sprintf(buffer, "%s/public/%s", rootpath, reqdata.path);
 			
     		struct stat path_stat;
-    		stat(buffer, &path_stat);
+    		stat(public_path, &path_stat);
 			
 			if (!S_ISREG(path_stat.st_mode)) {
-				//TODO: List directory
+				/* TODO: List directory */
 				SetColor16(COLOR_RED);
 				putchar('D');
 				ResetColor16();
 										 
-				//Remove file from cache
-				memset(buffer, 0, BUFSIZ);
-				sprintf(buffer, "%s/cache/%s", rootpath, escapestr(reqdata.path));
-				remove(buffer);
+				/* Remove file from cache */
+				remove(cached_path);
 				fclose(cachedfp);
 				
 				sprintf(resbuff, "HTTP/1.0 400 Bad Request\r\nServer: KRServer/"KRS_VERS);
@@ -465,7 +419,7 @@ noscript:
 				goto endreq;
 			}
 										 
-			//read data from file and write it to cached file
+			/* read data from file and write it to cached file */
 			fseek(publicfp, 0, SEEK_END);
 			body = malloc((bodylen = ftell(publicfp)));
 			fseek(publicfp, 0, SEEK_SET);
@@ -473,14 +427,13 @@ noscript:
 										 
 			fwrite(body, 1, bodylen, cachedfp);
 			
-			
-			//close file handles
+			/* close file handles */
 			fclose(cachedfp);
 			fclose(publicfp);
 		};
 		
 response:
-		//Send response
+		/* Send response */
 		putchar('O');
 		
 		sprintf(resbuff, "HTTP/1.0 200 OK\r\nServer: KRServer/"KRS_VERS"\r\n\r\n");
@@ -489,7 +442,7 @@ response:
 		write(csock, body, bodylen);
 		
 endreq:
-		//Finish and flush
+		/* Finish and flush */
 		putchar('\n');
 		fflush(stdout);
 		close(csock);

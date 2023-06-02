@@ -14,19 +14,22 @@
 #You should have received a copy of the GNU Affero General Public License
 #along with this program.  If not, see <https://www.gnu.org/licenses/>.
 all: clean build/krsrv build/netcc
+portable: clean build/krsrv_portable build/netcc
+
+CFLAGS="-fsanitize=all -pedantic -Weverything"
 
 clean:
-	rm -f build/*
+	$(RM) -f build/*
 
 build/krsrv: build/httpserver.o build/main.o build/bnsload.o build/libksl.o
-	gcc -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -o build/krsrv
+	$(CC) -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -o build/krsrv
 	
 build/krsrv_portable: build/httpserver.o build/main.o build/bnsload.o build/libksl.o
-	gcc -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -static -o build/krsrv_portable
+	$(CC) -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -static -o build/krsrv_portable
 
 build/netcc: build/netc.o build/libnetc.o build/libksl.o
-	gcc -g build/*netc.o build/libksl.o -dynamic -o build/netc
+	$(CC) -g build/*netc.o build/libksl.o -dynamic -o build/netc
 
 build/%.o: src/%.c
-	gcc -g -c -o $@ $<
+	$(CC) -g -c -o $@ $<
 
