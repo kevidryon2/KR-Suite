@@ -28,11 +28,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <errno.h>
 #include <stdbool.h>
 #include <hirolib.h>
+#include <signal.h>
 #include "bns.h"
 #include "server.h"
 
 //KR Server Version String
-#define KRS_VERS "0.05"
+#define KRS_VERS "0.10"
+
+void sigpipe() {
+	SetColor16(COLOR_RED);
+	printf("EPIPE");
+	ResetColor16();
+}
 
 const char *verbs[] = {"GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS"};
 typedef enum {
@@ -173,6 +180,8 @@ void set_env_variable() {
 
 int main(int argc, char **argv, char **envp) {
 	printf("KR Server "KRS_VERS"\n");
+	
+	signal(SIGPIPE, sigpipe);
 	
 	srand(time(NULL));
 	
@@ -323,7 +332,7 @@ int main(int argc, char **argv, char **envp) {
 		
 		//Parse request
 		putchar('P');
-		line = ntoken(reqbuff, "\n", 0);
+		line = ntoken(reqbuff, "\r\n", 0);
 		
 		if (!ntoken(line, " ", 2)) {
 			SetColor16(COLOR_RED);
@@ -348,7 +357,7 @@ int main(int argc, char **argv, char **envp) {
 				sprintf(resbuff, "Bad Protocol\n");
 				write(csock, resbuff, strlen(resbuff));
 				goto endreq;
-		} else if (needle(reqdata.rverb, verbs, 7) < 0) {
+		} else if ((cverb = needle(reqdata.rverb, verbs, 7)) < 0) {
 			SetColor16(COLOR_RED);
 			printf("V (Bad verb %s)", reqdata.rverb);
 			ResetColor16();
@@ -367,15 +376,28 @@ int main(int argc, char **argv, char **envp) {
 			}
 		};
 		
+		
 		//TODO: Parse headers
 		
 		goto noscript;
 script:
+		if (cverb == VERB_OPTIONS) {
+			printf("Ts");
+			//TODO: Return verbs supported by script
+		}
 		putchar('S');
 		execscript(scripts[script], reqdata, resbuff);
 		goto response;
 		
 noscript:
+		if (cverb == VERB_OPTIONS) {
+			printf("T");
+			sprintf(resbuff, "HTTP/1.0 200 OK\r\nServer: KRServer/"KRS_VERS"\r\nAllow: OPTIONS, GET, HEAD\r\n");
+			write(csock, resbuff, strlen(resbuff));
+			goto endreq;
+			
+		}
+		
 		//Fetch file
 		putchar('F');
 		memset(buffer, 0, BUFSIZ);
@@ -383,8 +405,9 @@ noscript:
 		
 		//If file doesn't exist in public directory return 404
 		if (!(publicfp = fopen(buffer, "r"))) {
+			printf("%d ", errno);
 			SetColor16(COLOR_RED);
-			printf(" %s ", reqdata.path);
+			printf("%s ", reqdata.path);
 			ResetColor16();
 			sprintf(resbuff, "HTTP/1.0 404 Not Found\nServer: KRServer/"KRS_VERS);
 			write(csock, resbuff, strlen(resbuff));
@@ -407,13 +430,18 @@ noscript:
 			fseek(cachedfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, cachedfp);
 			
+			fclose(publicfp);
 			fclose(cachedfp);
 			
 		} else {
 			putchar('N');
 			//If not cache file
-			cachedfp = fopen(buffer, "w"); //open cached file
-			
+			if (!(cachedfp = fopen(buffer, "w"))) { //open cached file
+				SetColor16(COLOR_RED);
+				putchar('C');
+				ResetColor16();
+				goto endreq;
+			}
 			memset(buffer, 0, BUFSIZ);
 			sprintf(buffer, "%s/public/%s", rootpath, reqdata.path);
 			
@@ -425,18 +453,27 @@ noscript:
 				SetColor16(COLOR_RED);
 				putchar('D');
 				ResetColor16();
-				sprintf(resbuff, "HTTP/1.0 400 Bad Request\nServer: KRServer/"KRS_VERS);
+										 
+				//Remove file from cache
+				memset(buffer, 0, BUFSIZ);
+				sprintf(buffer, "%s/cache/%s", rootpath, escapestr(reqdata.path));
+				remove(buffer);
+				fclose(cachedfp);
+				
+				sprintf(resbuff, "HTTP/1.0 400 Bad Request\r\nServer: KRServer/"KRS_VERS);
 				write(csock, resbuff, strlen(resbuff));
 				goto endreq;
 			}
-			
+										 
 			//read data from file and write it to cached file
 			fseek(publicfp, 0, SEEK_END);
 			body = malloc((bodylen = ftell(publicfp)));
 			fseek(publicfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, publicfp);
-			fwrite(body, 1, bodylen, cachedfp);
 										 
+			fwrite(body, 1, bodylen, cachedfp);
+			
+			
 			//close file handles
 			fclose(cachedfp);
 			fclose(publicfp);
@@ -446,10 +483,11 @@ response:
 		//Send response
 		putchar('O');
 		
-		sprintf(resbuff, "HTTP/1.0 200 OK\nServer: KRServer/"KRS_VERS"\n\n");
+		sprintf(resbuff, "HTTP/1.0 200 OK\r\nServer: KRServer/"KRS_VERS"\r\n\r\n");
 		write(csock, resbuff, strlen(resbuff));
+		
 		write(csock, body, bodylen);
-										 
+		
 endreq:
 		//Finish and flush
 		putchar('\n');
