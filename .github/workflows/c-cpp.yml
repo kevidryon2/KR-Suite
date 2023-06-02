@@ -17,5 +17,7 @@ jobs:
       run: cd server && make
     - name: Make KR Server Portable (Statically Linked)
       run: cd server && make portable
-    - name: Download a Build Artifact
+    - name: Download KR Server Build Artifacts
       uses: actions/download-artifact@v2.1.1
+      with:
+        path: server/build
