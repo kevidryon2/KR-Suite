@@ -27,8 +27,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <hirolib.h>
 #include <signal.h>
+#include "hirolib.h"
 #include "bns.h"
 #include "server.h"
 
