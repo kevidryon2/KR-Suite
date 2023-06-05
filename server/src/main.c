@@ -16,6 +16,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#define REDIRECT_ROOT //Redirect / to /index.html
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -33,12 +35,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "server.h"
 
 /* KR Server Version String */
-#define KRS_VERS "0.10.1"
+#define KRS_VERS "0.10.2"
 
 void sigpipe() {
 	SetColor16(COLOR_RED);
 	printf("EPIPE");
 	ResetColor16();
+}
+
+void logdata(char *data) {
+	for (int i=0; i<strlen(data); i++) {
+		if (data[i] < ' ' || data[i] > '~') {
+			printf("\\%sx%02x", "", (unsigned char)(data[i]));
+		} else putchar(data[i]);
+	}
 }
 
 const char *verbs[] = {"GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS"};
@@ -291,6 +301,9 @@ int main(int argc, char **argv, char **envp) {
 			SetColor16(COLOR_RED);
 			printf("H");
 			ResetColor16();
+			printf(" (Data: ");
+			logdata(reqbuff);
+			printf(")");
 			sprintf(resbuff, "Bad Protocol\n");
 			write(csock, resbuff, strlen(resbuff));
 			goto endreq;
@@ -301,14 +314,31 @@ int main(int argc, char **argv, char **envp) {
 		strcpy(reqdata.path, ntoken(line, " ", 1));
 		strncpy(reqdata.protocol, ntoken(line, " ", 2), 7);
 		
-		
+#ifdef REDIRECT_ROOT
+		if (!strcmp(reqdata.path, "/")) {
+			strcpy(reqdata.path, "/index.html");
+		}
+#endif
 		/* Verify client is using HTTP 1.0 or HTTP 1.1 Protocol and using verb GET, POST, PUT, PATCH, DELETE, OPTIONS, or HEAD*/
 		if (!(startswith(reqdata.protocol, "HTTP/1.0") ||
 			  startswith(reqdata.protocol, "HTTP/1.1"))) {
 			/* Using HTTP 0.9 */
 			SetColor16(COLOR_RED);
-			putchar('H');
+			printf("H");
 			ResetColor16();
+			printf(" (Data: ");
+			for (int i=0; i<32; i++)
+				if (reqbuff[i]=='\n')
+					putchar('_'); else putchar(reqbuff[i]);
+			if (strlen(reqbuff)>32) {
+				printf("...");
+			}
+			printf(")");
+			printf("%20s", reqbuff);
+			if (strlen(reqbuff)>20) {
+				printf("...");
+			}
+			printf(")");
 			sprintf(resbuff, "Bad Protocol\n");
 			write(csock, resbuff, strlen(resbuff));
 			goto endreq;

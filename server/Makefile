@@ -16,7 +16,7 @@
 all: clean build/krsrv build/netcc
 portable: clean build/krsrv_portable build/netcc
 
-CFLAGS="-fsanitize=all -pedantic -Weverything"
+CFLAGS="-fsanitize=all -pedantic -Weverything -O0"
 
 clean:
 	$(RM) -f build/*
