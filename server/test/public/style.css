@@ -1,0 +1,75 @@
+nav{
+    background-color: rgb(41, 47, 69);
+}
+
+
+.logo-brand {
+    width: 46px;
+    height: 46.5px;
+    background-color: rgb(235,111,102);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+}
+
+
+.logo-brand_span {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    
+}
+
+
+.logo-brand_paragraph {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 13px;
+}
+
+
+.navbar-brand{
+    margin-left: 20px;
+}
+
+
+p {
+    font-size: 1.125em; /* 18px */
+    color: rgb(114,120,127);
+ 
+}
+
+
+.hero{
+    weight: 595px;
+    width: auto;
+    background-image: url(img/hero.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: top;
+    
+
+}
+
+
+.text-center{
+    color: white;
+}
+
+
+.card-gutter {
+    border: 0;
+    justify-content: start;
+ }
+ .contatti svg{
+     width: 100%;
+ }
+ .footer p {
+     color: rgb(var(--color-hero-rgb));
+ }

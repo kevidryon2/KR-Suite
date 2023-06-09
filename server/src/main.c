@@ -35,7 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "server.h"
 
 /* KR Server Version String */
-#define KRS_VERS "0.10.3"
+#define KRS_VERS "0.10.4"
 
 void sigpipe() {
 	SetColor16(COLOR_RED);
@@ -416,12 +416,12 @@ noscript:
 										 
 			/* Read cached file */
 			fseek(cachedfp, 0, SEEK_END);
-			body = malloc(ftell(cachedfp));
-			memset(body, 0, ftell(cachedfp));
+			body = malloc(bodylen = ftell(cachedfp));
+			
+			memset(body, 0, bodylen);
+			
 			fseek(cachedfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, cachedfp);
-			 
-			
 
 			/* Close FPs */
 			fclose(publicfp);
@@ -458,10 +458,15 @@ noscript:
 			/* read data from file and write it to cached file */
 			fseek(publicfp, 0, SEEK_END);
 			body = malloc((bodylen = ftell(publicfp)));
+			
+			memset(body, 0, bodylen);
+			
 			fseek(publicfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, publicfp);
 										 
 			fwrite(body, 1, bodylen, cachedfp);
+			
+			printf("%d %s ", bodylen, body);
 			
 			/* close file handles */
 			fclose(cachedfp);
