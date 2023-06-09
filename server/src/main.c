@@ -35,7 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "server.h"
 
 /* KR Server Version String */
-#define KRS_VERS "0.10.2"
+#define KRS_VERS "0.10.3"
 
 void sigpipe() {
 	SetColor16(COLOR_RED);
@@ -204,7 +204,6 @@ int main(int argc, char **argv, char **envp) {
 			if (endswith(ent->d_name, ".bns")) {
 				
 				/*Open file*/
-				free(buffer);
 				buffer = combine(scriptpath, ent->d_name);
 				printf("Loading file %s... ", ent->d_name);
 				fp = fopen(buffer, "r");
@@ -397,7 +396,11 @@ noscript:
 			printf("%d ", errno);
 			printf("%s ", reqdata.path);
 			ResetColor16();
-			sprintf(resbuff, "HTTP/1.0 404 Not Found\nServer: KRServer/"KRS_VERS);
+			if (errno == 2) {
+				sprintf(resbuff, "HTTP/1.0 404 Not Found\nServer: KRServer/"KRS_VERS"\n\nError: File %s not found.\n", reqdata.path);
+			} else {
+				sprintf(resbuff, "HTTP/1.0 500 Internal Server Error\nServer: KRServer/"KRS_VERS"\n\nError: Recieved errno %d while trying to read file %s.\n", errno, reqdata.path);
+			}
 			write(csock, resbuff, strlen(resbuff));
 			goto endreq;
 		}
@@ -414,9 +417,12 @@ noscript:
 			/* Read cached file */
 			fseek(cachedfp, 0, SEEK_END);
 			body = malloc(ftell(cachedfp));
+			memset(body, 0, ftell(cachedfp));
 			fseek(cachedfp, 0, SEEK_SET);
 			fread(body, 1, bodylen, cachedfp);
 			 
+			
+
 			/* Close FPs */
 			fclose(publicfp);
 			fclose(cachedfp);
