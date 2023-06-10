@@ -13,14 +13,11 @@
 #
 #You should have received a copy of the GNU Affero General Public License
 #along with this program.  If not, see <https://www.gnu.org/licenses/>.
-all: clean build/krsrv-arm build/netcc-arm
-dynamic: clean build/krsrv-arm_dynamic build/netcc-arm
+all: build/krsrv-arm build/netcc-arm
+dynamic: build/krsrv-arm_dynamic build/netcc-arm
 
 CFLAGS=-pedantic -Wall -O0
 ARMCC=arm-linux-gnueabi-gcc
-
-clean:
-	$(RM) -f build/*
 
 build/krsrv-arm_dynamic: build/httpserver-arm.o build/main-arm.o \
 		 build/bnsload-arm.o build/libksl-arm.o

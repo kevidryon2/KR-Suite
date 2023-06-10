@@ -16,8 +16,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#define REDIRECT_ROOT //Redirect / to /index.html
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -35,12 +33,83 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "server.h"
 
 /* KR Server Version String */
-#define KRS_VERS "0.10.4"
+#define KRS_VERS "0.11"
 
 void sigpipe() {
 	SetColor16(COLOR_RED);
 	printf("EPIPE");
 	ResetColor16();
+}
+
+bool exists(char *path) {
+	FILE *fp = fopen(path, "r");
+	if (fp) {
+		fclose(fp);
+		return true;
+	}
+	return false;
+}
+
+int filesize(FILE *fp) {
+	int os = ftell(fp);
+	fseek(fp, 0, SEEK_END);
+	int s = ftell(fp);
+	fseek(fp, os, SEEK_SET);
+	return s;
+}
+
+typedef struct {
+	int type; //0 = invalid, 1 = cached file, 2 = public file
+	int datalen;
+	char *data;
+} loadFile_returnData;
+
+loadFile_returnData loadFile(char *pubpath, char *cachepath, int csock) {
+	if (!pubpath) {errno=EINVAL; return (loadFile_returnData){0};};
+	loadFile_returnData data;
+
+	FILE *pubfile;
+	FILE *cachefile;
+
+#ifndef DISABLE_CACHE
+	if (!exists(cachepath)) {
+#else
+	if (true) {
+#endif
+		//If cached file doesn't exist, cache file
+		pubfile = fopen(pubpath, "r");
+		cachefile = fopen(cachepath, "w");
+		if (!cachefile) {
+			printf("can't open file %s :( (Error %d)\n", cachepath, errno);
+			exit(1);
+		}
+
+		data.datalen = filesize(pubfile);
+		data.data = malloc(data.datalen);
+		if (!data.data) {
+			perror("malloc");
+			exit(1);
+		}
+
+		fread(data.data, 1, data.datalen, pubfile);
+		fwrite(data.data, 1, data.datalen, cachefile);
+
+		fclose(pubfile);
+		fclose(cachefile);
+	} else {
+		cachefile = fopen(cachepath, "r");
+
+		data.datalen = filesize(cachefile);
+		data.data = malloc(data.datalen);
+		if (!data.data) {
+			perror("malloc");
+			exit(1);
+		}
+
+		fread(data.data, 1, data.datalen, cachefile);
+		fclose(cachefile);
+	}
+	return data;
 }
 
 void logdata(char *data) {
@@ -96,48 +165,32 @@ char *ntoken(char *const s, char *d, int t) {
 	return tk;
 }
 
-char *escapestr(char *s) {
-	char *o = malloc(1);
-	int csiz = 1;
-	for (int i=0; i<strlen(s); i++) {
-		csiz++; o = realloc(o, csiz);
-		switch (s[i]) {
-			case '/':
-				o[csiz-1] = '_';
-				break;
-			case '_':
-				csiz+=2; o = realloc(o, csiz);
-				strcat(o, "__");
-			default:
-				o[csiz-1] = s[i];
-				break;
-		}
-	};
-	
-	o++;
-	o[csiz-1] = 0;
-	
-	return o;
-}
+char *escapestr(unsigned char *s) {
+	unsigned char *o = malloc(BUFSIZ);
 
-char *unescapestr(char *s) {
-	char *un = malloc(1);
-	int usiz = 1;
+	memset(o, 0, BUFSIZ);
 	
+	int j;
+
+	int oi = 0;
 	for (int i=0; i<strlen(s); i++) {
-		usiz++; un = realloc(un, usiz);
-		switch (s[i]) {
-			case '_':
-				if (s[i+1] == '_')
-					un[usiz-1] = '_';
-				else un[usiz-1] = '/';
-				break;
-			default:
-				un[usiz-1] = s[i];
+		for (j=i; s[j] &&
+			 	  s[j] != '/' &&
+			 	  s[j] < 0x80 &&
+			 	  s[j] > 0x1f; j++);
+		j -= i;
+		if (j > 0) {
+			if (j > 25) j = 25;
+			o[oi] = 'A'+j; oi++;
+			memcpy(o+oi, s+i, j); oi += j, i += j;
+			i--;
+		} else {
+			o[oi] = (s[i]>>4)+'a'; oi++;
+			o[oi] = (s[i]%16)+'a'; oi++;
 		}
 	}
 	
-	return un;
+	return o;
 }
 
 void set_env_variable() {
@@ -174,6 +227,7 @@ int main(int argc, char **argv, char **envp) {
 	char rootpath[BUFSIZ];
 	char cwdbuffer[BUFSIZ/2];
 	char *fullpath;
+	loadFile_returnData read_data;
 	
 	/* Get server path */
 	getcwd(cwdbuffer, BUFSIZ/2);
@@ -313,9 +367,13 @@ int main(int argc, char **argv, char **envp) {
 		strcpy(reqdata.path, ntoken(line, " ", 1));
 		strncpy(reqdata.protocol, ntoken(line, " ", 2), 7);
 		
-#ifdef REDIRECT_ROOT
+#ifndef NO_REDIRECT_ROOT
 		if (!strcmp(reqdata.path, "/")) {
 			strcpy(reqdata.path, "/index.html");
+		}
+#elif REDIRECT_ROOT_PHP
+		if (!strcmp(reqdata.path, "/")) {
+			strcpy(reqdata.path, "/index.php");
 		}
 #endif
 		/* Verify client is using HTTP 1.0 or HTTP 1.1 Protocol and using verb GET, POST, PUT, PATCH, DELETE, OPTIONS, or HEAD*/
@@ -410,68 +468,9 @@ noscript:
 		memset(cached_path, 0, PATH_MAX);
 		sprintf(cached_path, "%s/cache/%s", rootpath, escapestr(reqdata.path));
 										 
-		/* Is file in cache? */
-		if ((cachedfp = fopen(cached_path, "r"))) {
-			putchar('C');
-										 
-			/* Read cached file */
-			fseek(cachedfp, 0, SEEK_END);
-			body = malloc(bodylen = ftell(cachedfp));
-			
-			memset(body, 0, bodylen);
-			
-			fseek(cachedfp, 0, SEEK_SET);
-			fread(body, 1, bodylen, cachedfp);
+		read_data = loadFile(public_path, cached_path, csock);
 
-			/* Close FPs */
-			fclose(publicfp);
-			fclose(cachedfp);
-			
-		} else {
-			putchar('N');
-			/* If not cache file */
-			if (!(cachedfp = fopen(cached_path, "w"))) { /* open cached file */
-				SetColor16(COLOR_RED);
-				printf("%dC", errno);
-				ResetColor16();
-				goto endreq;
-			}
-			
-    		struct stat path_stat;
-    		stat(public_path, &path_stat);
-			
-			if (!S_ISREG(path_stat.st_mode)) {
-				/* TODO: List directory */
-				SetColor16(COLOR_RED);
-				putchar('D');
-				ResetColor16();
-										 
-				/* Remove file from cache */
-				remove(cached_path);
-				fclose(cachedfp);
-				
-				sprintf(resbuff, "HTTP/1.0 400 Bad Request\r\nServer: KRServer/"KRS_VERS);
-				write(csock, resbuff, strlen(resbuff));
-				goto endreq;
-			}
-										 
-			/* read data from file and write it to cached file */
-			fseek(publicfp, 0, SEEK_END);
-			body = malloc((bodylen = ftell(publicfp)));
-			
-			memset(body, 0, bodylen);
-			
-			fseek(publicfp, 0, SEEK_SET);
-			fread(body, 1, bodylen, publicfp);
-										 
-			fwrite(body, 1, bodylen, cachedfp);
-			
-			printf("%d %s ", bodylen, body);
-			
-			/* close file handles */
-			fclose(cachedfp);
-			fclose(publicfp);
-		};
+		printf("%d ", read_data.datalen);
 		
 response:
 		/* Send response */
@@ -480,7 +479,8 @@ response:
 		sprintf(resbuff, "HTTP/1.0 200 OK\r\nServer: KRServer/"KRS_VERS"\r\n\r\n");
 		write(csock, resbuff, strlen(resbuff));
 		
-		write(csock, body, bodylen);
+		write(csock, read_data.data, read_data.datalen);
+		free(read_data.data);
 		
 endreq:
 		/* Finish and flush */

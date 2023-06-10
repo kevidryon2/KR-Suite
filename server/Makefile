@@ -1,5 +1,7 @@
-all: x86
+all: clean x86
 
+clean:
+	rm -f build/*
 x86:
 	make -f Makefile.x86
 arm:

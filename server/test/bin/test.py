@@ -13,20 +13,36 @@
 #
 #You should have received a copy of the GNU Affero General Public License
 #along with this program.  If not, see <https://www.gnu.org/licenses/>.
-all: build/krsrv build/netcc
-portable: build/krsrv_portable build/netcc
 
-CFLAGS += -pedantic -Wall -O0
+import requests
+import hashlib
+import sys
 
-build/krsrv: build/httpserver.o build/main.o build/bnsload.o build/libksl.o
-	$(CC) -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -o build/krsrv $(CFLAGS)
-	
-build/krsrv_portable: build/httpserver.o build/main.o build/bnsload.o build/libksl.o
-	$(CC) -g build/httpserver.o build/main.o build/bnsload.o build/libksl.o -static -o build/krsrv_portable $(CFLAGS)
+def hashd(d):
+    d = bytes(d.encode("windows-1252"))
+    h = hashlib.sha1()
+    chunk = 0
+    i = 0
+    while (chunk != b''):
+        chunk = d[i:(i+1024)]
+        h.update(chunk)
+        i += 1024
+    return h.hexdigest()
 
-build/netcc: build/netc.o build/libnetc.o build/libksl.o
-	$(CC) -g build/*netc.o build/libksl.o -dynamic -o build/netc $(CFLAGS)
+testhash = "d90e12db3d2ade1386a22cb71b287b8136f66a13"
 
-build/%.o: src/%.c
-	$(CC) -g -c -o $@ $< $(CFLAGS)
+numtests = 100
 
+successes = 0
+fails = 0
+for i in range(numtests):
+    print("Test", i, end = ": ")
+    r = requests.get("http://localhost:"+sys.argv[1]+"/TESTFILE")
+    if (hashd(r.text) == testhash):
+        print("SUCCESS")
+        successes += 1;
+    else:
+        print("FAIL\nExpected:",testhash,"\nGot:",hashd(r.text))
+        fails += 1;
+
+print("Score:", successes-fails)
